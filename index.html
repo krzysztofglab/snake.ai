@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pl" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
+    }
+  </script>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+
+  <link rel="stylesheet" href="assets/css/snake.css" />
+</head>
+<body class="bg-slate-950 text-slate-100 flex flex-col items-center justify-center min-h-screen p-4 gap-5">
+
+  <!-- ── Header ── -->
+  <div class="flex items-center justify-between w-full max-w-lg">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl font-bold tracking-tight text-white">🐍 Snake</span>
+      <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="statusText" class="text-slate-400 text-xs font-medium">Ready</span>
+      </div>
+    </div>
+    <button id="modeToggle"
+      class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-600 bg-slate-800 hover:bg-slate-700 hover:border-slate-500 text-slate-200 transition-colors duration-150 select-none">
+      🤖 AI Mode
+    </button>
+  </div>
+
+  <!-- ── Human stats ── -->
+  <div id="humanPanel" class="flex gap-3 w-full max-w-lg">
+    <div class="score-card flex-1 px-4 py-3 text-center">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-1">Score</p>
+      <p id="score" class="text-2xl font-bold text-white tabular-nums">0</p>
+    </div>
+    <div class="score-card flex-1 px-4 py-3 text-center">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-1">Best</p>
+      <p id="highScore" class="text-2xl font-bold text-amber-400 tabular-nums">0</p>
+    </div>
+    <div class="score-card flex-1 px-4 py-3 text-center">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-1">Length</p>
+      <p id="snakeLength" class="text-2xl font-bold text-emerald-400 tabular-nums">3</p>
+    </div>
+    <div class="score-card flex-1 px-4 py-3 text-center">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-1">Level</p>
+      <p id="level" class="text-2xl font-bold text-sky-400 tabular-nums">1</p>
+    </div>
+  </div>
+
+  <!-- ── AI stats ── -->
+  <div id="aiPanel" class="hidden w-full max-w-lg space-y-2">
+    <div class="flex gap-2">
+      <div class="score-card flex-1 px-3 py-2 text-center">
+        <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-0.5">Episode</p>
+        <p id="aiEpisode" class="text-xl font-bold text-white tabular-nums">0</p>
+      </div>
+      <div class="score-card flex-1 px-3 py-2 text-center">
+        <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-0.5">Best</p>
+        <p id="aiBest" class="text-xl font-bold text-amber-400 tabular-nums">0</p>
+      </div>
+      <div class="score-card flex-1 px-3 py-2 text-center">
+        <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-0.5">Avg(100)</p>
+        <p id="aiAvg" class="text-xl font-bold text-emerald-400 tabular-nums">—</p>
+      </div>
+      <div class="score-card flex-1 px-3 py-2 text-center">
+        <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-0.5">Epsilon ε</p>
+        <p id="aiEpsilon" class="text-xl font-bold text-violet-400 tabular-nums">1.0000</p>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <div class="score-card flex-1 px-3 py-2 text-center">
+        <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-0.5">Loss</p>
+        <p id="aiLoss" class="text-sm font-bold text-rose-400 tabular-nums">—</p>
+      </div>
+      <div class="score-card grow px-3 py-2 text-center">
+        <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-0.5">Buffer</p>
+        <p id="aiMemory" class="text-sm font-bold text-sky-400 tabular-nums">0</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Canvas (shared) ── -->
+  <canvas id="gameCanvas" width="480" height="480" tabindex="0"></canvas>
+
+  <!-- ── Human controls ── -->
+  <div id="humanControls" class="flex items-center gap-4">
+    <button id="actionBtn"
+      class="px-6 py-2.5 rounded-lg font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white transition-colors duration-150 shadow-lg shadow-emerald-950/50 select-none">
+      Start
+    </button>
+    <!-- Mobile D-pad -->
+    <div class="flex flex-col items-center gap-1 sm:hidden">
+      <button class="dpad-btn" data-dir="UP"    aria-label="Up">▲</button>
+      <div class="flex gap-1">
+        <button class="dpad-btn" data-dir="LEFT"  aria-label="Left">◀</button>
+        <button class="dpad-btn" data-dir="DOWN"  aria-label="Down">▼</button>
+        <button class="dpad-btn" data-dir="RIGHT" aria-label="Right">▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AI controls ── -->
+  <div id="aiControls" class="hidden flex-col items-center gap-3 w-full max-w-lg">
+    <!-- Train / Watch toggle -->
+    <div class="flex items-center gap-2">
+      <button id="btnTrain"
+        class="px-5 py-2 rounded-lg font-semibold text-sm bg-violet-600 hover:bg-violet-500 text-white transition-colors select-none">
+        ⚡ Train Fast
+      </button>
+      <button id="btnWatch"
+        class="px-5 py-2 rounded-lg font-semibold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors select-none">
+        👁 Watch AI
+      </button>
+      <button id="btnSave"
+        class="px-5 py-2 rounded-lg font-semibold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors select-none">
+        💾 Save
+      </button>
+    </div>
+    <!-- Watch speed slider (hidden in training mode) -->
+    <div id="speedRow" class="hidden items-center gap-3 text-sm text-slate-400">
+      <span>Slow</span>
+      <input id="speedSlider" type="range" min="40" max="450" value="100" step="10"
+        class="w-40 accent-emerald-500" />
+      <span>Fast</span>
+    </div>
+  </div>
+
+  <!-- ── Keyboard hints (human only) ── -->
+  <div id="keyHints" class="hidden sm:flex items-center gap-4 text-xs text-slate-500">
+    <span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — move</span>
+    <span class="text-slate-700">·</span>
+    <span><kbd>Space</kbd> / <kbd>Esc</kbd> — pause</span>
+    <span class="text-slate-700">·</span>
+    <span><kbd>Enter</kbd> — start / retry</span>
+  </div>
+
+  <!-- Scripts — load order matters (globals used across files) -->
+  <script src="assets/js/snake.js"></script>
+  <script src="assets/js/snake-env.js"></script>
+  <script src="assets/js/snake-agent.js"></script>
+  <script src="assets/js/snake-ai.js"></script>
+
+  <script>
+    'use strict';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('gameCanvas');
+
+      // ── UI element bags ─────────────────────────────────────────────────
+      const humanUI = {
+        canvas,
+        score:       document.getElementById('score'),
+        highScore:   document.getElementById('highScore'),
+        snakeLength: document.getElementById('snakeLength'),
+        level:       document.getElementById('level'),
+        statusDot:   document.getElementById('statusDot'),
+        statusText:  document.getElementById('statusText'),
+        actionBtn:   document.getElementById('actionBtn'),
+      };
+
+      const aiUI = {
+        canvas,
+        episode:    document.getElementById('aiEpisode'),
+        bestScore:  document.getElementById('aiBest'),
+        avgScore:   document.getElementById('aiAvg'),
+        epsilon:    document.getElementById('aiEpsilon'),
+        loss:       document.getElementById('aiLoss'),
+        memory:     document.getElementById('aiMemory'),
+        statusDot:  document.getElementById('statusDot'),
+        statusText: document.getElementById('statusText'),
+      };
+
+      // ── State ────────────────────────────────────────────────────────────
+      let mode      = 'human';
+      let humanGame = null;
+      let aiCtrl    = null;
+
+      // ── Human mode ───────────────────────────────────────────────────────
+      function initHumanMode() {
+        humanGame = new Game(humanUI);
+      }
+
+      function destroyHumanMode() {
+        if (humanGame) { humanGame.destroy(); humanGame = null; }
+      }
+
+      // ── AI mode ──────────────────────────────────────────────────────────
+      function initAIMode() {
+        aiCtrl = new AIController(aiUI);
+        aiCtrl.start();
+      }
+
+      function destroyAIMode() {
+        if (aiCtrl) { aiCtrl.stop(); aiCtrl = null; }
+      }
+
+      // ── Mode switch ──────────────────────────────────────────────────────
+      function switchMode(newMode) {
+        if (newMode === mode) return;
+        mode = newMode;
+
+        const humanPanel    = document.getElementById('humanPanel');
+        const humanControls = document.getElementById('humanControls');
+        const keyHints      = document.getElementById('keyHints');
+        const aiPanel       = document.getElementById('aiPanel');
+        const aiControls    = document.getElementById('aiControls');
+        const modeToggle    = document.getElementById('modeToggle');
+
+        if (newMode === 'ai') {
+          destroyHumanMode();
+          humanPanel.classList.add('hidden');
+          humanControls.classList.add('hidden');
+          keyHints.classList.add('hidden');
+          aiPanel.classList.remove('hidden');
+          aiControls.classList.remove('hidden');
+          aiControls.classList.add('flex');
+          modeToggle.textContent = '🎮 Human Mode';
+          initAIMode();
+        } else {
+          destroyAIMode();
+          aiPanel.classList.add('hidden');
+          aiControls.classList.add('hidden');
+          aiControls.classList.remove('flex');
+          humanPanel.classList.remove('hidden');
+          humanControls.classList.remove('hidden');
+          keyHints.classList.remove('hidden');
+          modeToggle.textContent = '🤖 AI Mode';
+          initHumanMode();
+        }
+      }
+
+      // ── Event listeners (set once, delegate to current instances) ────────
+
+      document.getElementById('modeToggle').addEventListener('click', () => {
+        switchMode(mode === 'human' ? 'ai' : 'human');
+      });
+
+      humanUI.actionBtn.addEventListener('click', () => {
+        if (!humanGame) return;
+        if (humanGame._state === 'idle' || humanGame._state === 'gameover') {
+          humanGame.startOrRestart();
+        } else {
+          humanGame.togglePause();
+        }
+      });
+
+      document.querySelectorAll('[data-dir]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (humanGame) humanGame.setDirection(DIRECTIONS[btn.dataset.dir]);
+        });
+      });
+
+      // AI: Train / Watch toggle
+      document.getElementById('btnTrain').addEventListener('click', () => {
+        if (!aiCtrl) return;
+        aiCtrl.setMode('training');
+        document.getElementById('btnTrain').className =
+          'px-5 py-2 rounded-lg font-semibold text-sm bg-violet-600 hover:bg-violet-500 text-white transition-colors select-none';
+        document.getElementById('btnWatch').className =
+          'px-5 py-2 rounded-lg font-semibold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors select-none';
+        document.getElementById('speedRow').classList.add('hidden');
+      });
+
+      document.getElementById('btnWatch').addEventListener('click', () => {
+        if (!aiCtrl) return;
+        aiCtrl.setMode('watching');
+        document.getElementById('btnWatch').className =
+          'px-5 py-2 rounded-lg font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition-colors select-none';
+        document.getElementById('btnTrain').className =
+          'px-5 py-2 rounded-lg font-semibold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors select-none';
+        document.getElementById('speedRow').classList.remove('hidden');
+        document.getElementById('speedRow').classList.add('flex');
+      });
+
+      // Speed slider — inverted: higher value = faster (lower ms)
+      document.getElementById('speedSlider').addEventListener('input', (e) => {
+        if (aiCtrl) aiCtrl.setWatchSpeed(460 - parseInt(e.target.value));
+      });
+
+      document.getElementById('btnSave').addEventListener('click', async () => {
+        if (!aiCtrl) return;
+        document.getElementById('btnSave').textContent = '...';
+        await aiCtrl.save();
+        document.getElementById('btnSave').textContent = '✓ Saved';
+        setTimeout(() => { document.getElementById('btnSave').textContent = '💾 Save'; }, 2000);
+      });
+
+      // ── Boot ─────────────────────────────────────────────────────────────
+      initHumanMode();
+    });
+  </script>
+</body>
+</html>
