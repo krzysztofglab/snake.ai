@@ -2,6 +2,10 @@
 
 Klasyczna gra Snake z wbudowanym agentem uczącym się opartym na **Deep Q-Network (DQN)** i bibliotece **TensorFlow.js**.
 
+## GitHub Pages
+
+https://krzysztofglab.github.io/snake.ai/
+
 ## Tryby gry
 
 | Tryb | Opis |
