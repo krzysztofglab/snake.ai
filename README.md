@@ -4,7 +4,7 @@ Klasyczna gra Snake z wbudowanym agentem uczącym się opartym na **Deep Q-Netwo
 
 ## GitHub Pages
 
-https://krzysztofglab.github.io/snake.ai/
+[Zagraj online](https://krzysztofglab.github.io/snake.ai/)
 
 ## Tryby gry
 
